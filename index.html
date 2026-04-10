@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="tr" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Dinamik SEO Etiketleri (Vue Tarafından Yönetilecek) -->
+    <title>Master Unit Converter | Tüm Birimleri Hızla Çevirin</title>
+    <meta name="description" content="Uzunluk, ağırlık, döviz, kripto ve 15'ten fazla kategoride ücretsiz, canlı ve ultra hızlı birim çevirici.">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        [v-cloak] { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .slide-enter-active, .slide-leave-active { transition: transform 0.3s ease; }
+        .slide-enter-from { transform: translateX(-100%); }
+        .slide-leave-to { transform: translateX(-100%); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300 font-sans antialiased min-h-screen">
+
+<div id="app" v-cloak class="flex h-screen overflow-hidden">
+
+    <!-- Mobile Sidebar Overlay -->
+    <transition name="fade">
+        <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black/50 z-40 lg:hidden"></div>
+    </transition>
+
+    <!-- Sidebar / Navigation -->
+    <transition name="slide">
+        <aside :class="['fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 overflow-y-auto transform transition-transform duration-300 lg:relative lg:translate-x-0', sidebarOpen ? 'translate-x-0' : '-translate-x-full']">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-8">
+                    <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">MasterConv</h1>
+                    <button @click="sidebarOpen = false" class="lg:hidden text-slate-500 hover:text-slate-800 dark:hover:text-white">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+
+                <!-- Arama -->
+                <div class="relative mb-6">
+                    <i data-lucide="search" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+                    <input v-model="searchQuery" type="text" placeholder="Araç ara..." class="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border-none rounded-xl focus:ring-2 focus:ring-primary outline-none transition-shadow text-sm">
+                </div>
+
+                <!-- Son Kullanılanlar -->
+                <div v-if="recentTools.length > 0 && !searchQuery" class="mb-6">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Son Kullanılanlar</h3>
+                    <div class="space-y-1">
+                        <button v-for="slug in recentTools.slice(0, 3)" :key="'recent-'+slug" @click="selectTool(slug)" 
+                                class="w-full flex items-center px-3 py-2 text-sm rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                :class="{'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400': activeToolId === slug}">
+                            <i :data-lucide="getTool(slug).icon" class="w-4 h-4 mr-3"></i>
+                            {{ getTool(slug).name }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kategoriler -->
+                <div class="space-y-6">
+                    <div v-for="(tools, category) in filteredCategories" :key="category">
+                        <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{{ category }}</h3>
+                        <div class="space-y-1">
+                            <button v-for="tool in tools" :key="tool.id" @click="selectTool(tool.id)" 
+                                    class="w-full flex items-center px-3 py-2 text-sm rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                    :class="{'bg-blue-50 text-blue-600 font-medium dark:bg-blue-900/30 dark:text-blue-400': activeToolId === tool.id}">
+                                <i :data-lucide="tool.icon" class="w-4 h-4 mr-3" :class="{'text-blue-500': activeToolId === tool.id}"></i>
+                                {{ tool.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </transition>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-50 dark:bg-slate-900 relative">
+        
+        <!-- Header -->
+        <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center">
+                <button @click="sidebarOpen = true" class="lg:hidden mr-4 text-slate-500 hover:text-slate-800 dark:hover:text-white">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <div class="flex items-center text-sm text-slate-500 dark:text-slate-400">
+                    <span>Araçlar</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 mx-2"></i>
+                    <span class="text-slate-800 dark:text-slate-200 font-medium">{{ activeTool.name }}</span>
+                </div>
+            </div>
+            
+            <button @click="toggleTheme" class="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                <i :data-lucide="isDark ? 'sun' : 'moon'" class="w-5 h-5"></i>
+            </button>
+        </header>
+
+        <!-- Content Area -->
+        <div class="p-4 sm:p-8 max-w-4xl mx-auto w-full">
+            
+            <div class="mb-8">
+                <h2 class="text-3xl sm:text-4xl font-bold mb-3">{{ activeTool.name }} Çevirici</h2>
+                <p class="text-slate-500 dark:text-slate-400">{{ activeTool.seo.description }}</p>
+            </div>
+
+            <!-- Converter Widget -->
+            <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700 p-6 sm:p-8 mb-12">
+                
+                <!-- Status Message (for APIs) -->
+                <div v-if="apiLoading" class="mb-4 text-sm text-blue-500 flex items-center">
+                    <i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Canlı kurlar güncelleniyor...
+                </div>
+                <div v-if="apiError" class="mb-4 text-sm text-red-500 flex items-center">
+                    <i data-lucide="alert-circle" class="w-4 h-4 mr-2"></i> Canlı veri çekilemedi, varsayılan kurlar kullanılıyor.
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
+                    
+                    <!-- From Input Group -->
+                    <div class="relative group">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Miktar</label>
+                        <div class="relative flex items-center bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary overflow-hidden transition-all">
+                            <input type="number" v-model="fromValue" @input="calcToValue" class="w-full bg-transparent text-xl font-medium text-slate-800 dark:text-white p-4 outline-none appearance-none">
+                            <select v-model="fromUnit" @change="calcToValue" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-4 px-4 font-semibold outline-none cursor-pointer border-l border-slate-200 dark:border-slate-700">
+                                <option v-for="(val, key) in activeTool.units" :key="key" :value="key">{{ getUnitName(key) }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Swap Button -->
+                    <div class="flex justify-center mt-6 md:mt-0">
+                        <button @click="swapUnits" class="p-3 bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                            <i data-lucide="arrow-right-left" class="w-5 h-5 rotate-90 md:rotate-0"></i>
+                        </button>
+                    </div>
+
+                    <!-- To Input Group -->
+                    <div class="relative group">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Sonuç</label>
+                        <div class="relative flex items-center bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary overflow-hidden transition-all">
+                            <input type="number" v-model="toValue" @input="calcFromValue" class="w-full bg-transparent text-xl font-medium text-slate-800 dark:text-white p-4 outline-none appearance-none">
+                            <select v-model="toUnit" @change="calcToValue" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 py-4 px-4 font-semibold outline-none cursor-pointer border-l border-slate-200 dark:border-slate-700">
+                                <option v-for="(val, key) in activeTool.units" :key="key" :value="key">{{ getUnitName(key) }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                
+                <div class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Formül: 1 {{ getUnitName(fromUnit) }} = {{ conversionRateDisplay }} {{ getUnitName(toUnit) }}
+                </div>
+            </div>
+
+            <!-- SEO Content & FAQ -->
+            <article class="prose prose-slate dark:prose-invert max-w-none">
+                <h3 class="text-2xl font-bold mb-4">{{ activeTool.name }} Hakkında ve Matematiksel Formülü</h3>
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 mb-8" v-html="activeTool.seo.content">
+                </div>
+
+                <h3 class="text-2xl font-bold mb-4 flex items-center">
+                    <i data-lucide="help-circle" class="w-6 h-6 mr-2 text-primary"></i> Sıkça Sorulan Sorular (SSS)
+                </h3>
+                <div class="space-y-4">
+                    <div v-for="(faq, idx) in activeTool.faq" :key="idx" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <button @click="toggleFaq(idx)" class="w-full px-6 py-4 text-left font-semibold flex justify-between items-center hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                            {{ faq.q }}
+                            <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 transition-transform duration-200" :class="{'rotate-180': openFaq === idx}"></i>
+                        </button>
+                        <div v-show="openFaq === idx" class="px-6 py-4 border-t border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                            {{ faq.a }}
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <footer class="mt-16 pt-8 border-t border-slate-200 dark:border-slate-800 text-center text-slate-500 text-sm">
+                &copy; 2026 Master Unit Converter. Tüm hakları saklıdır.
+            </footer>
+
+        </div>
+    </main>
+</div>
+
+<script>
+    const { createApp } = Vue;
+
+    // Araç Veritabanı ve Mantığı
+    const toolsData = [
+        {
+            id: 'uzunluk',
+            name: 'Uzunluk',
+            category: 'Genel',
+            icon: 'ruler',
+            seo: {
+                title: 'Uzunluk Birim Çevirici | Metre, Kilometre, İnç, Mil',
+                description: 'Metre, kilometre, mil, inç, ayak (foot) ve diğer uzunluk birimlerini anında ve hassas olarak birbirine çevirin.',
+                content: `<p>Uzunluk birimleri arasındaki dönüşüm, uluslararası standartlara (SI) dayanır. Temel birim <strong>Metre (m)</strong>'dir.</p>
+                          <p><strong>Temel Formüller:</strong></p>
+                          <ul>
+                            <li>1 Kilometre (km) = 1,000 Metre (m)</li>
+                            <li>1 Mil (mi) = 1,609.34 Metre (m)</li>
+                            <li>1 İnç (in) = 0.0254 Metre (m) veya 2.54 Santimetre (cm)</li>
+                          </ul>
+                          <p>Diğer tüm birimler önce baz birim olan metreye çevrilir, ardından hedef birime bölünerek sonuç elde edilir.</p>`
+            },
+            units: {
+                'm': 1, 'km': 1000, 'cm': 0.01, 'mm': 0.001, 
+                'in': 0.0254, 'ft': 0.3048, 'yd': 0.9144, 'mi': 1609.344
+            },
+            faq: [
+                { q: '1 Mil kaç kilometredir?', a: '1 kara mili tam olarak 1.609344 kilometredir.' },
+                { q: '1 İnç kaç santimetredir?', a: '1 inç, matematiksel olarak tam 2.54 santimetreye (cm) eşittir.' },
+                { q: 'Metrik sistem nerede kullanılır?', a: 'Amerika Birleşik Devletleri, Myanmar ve Liberya dışında dünya genelinde resmi olarak metrik sistem (metre, kilogram vb.) kullanılır.' }
+            ]
+        },
+        {
+            id: 'agirlik',
+            name: 'Ağırlık / Kütle',
+            category: 'Genel',
+            icon: 'weight',
+            seo: {
+                title: 'Ağırlık Çevirici | Kilogram, Gram, Libre (Pound), Ons',
+                description: 'Kilogram, gram, libre (lb), ons (oz) gibi kütle ve ağırlık birimleri arasında kolayca hesaplama yapın.',
+                content: `<p>Uluslararası birim sisteminde (SI) kütlenin temel birimi Kilogram (kg) olsa da, hesaplamalarda esneklik için baz olarak <strong>Gram (g)</strong> sıklıkla kullanılır.</p>
+                          <ul>
+                            <li>1 Kilogram (kg) = 1,000 Gram (g)</li>
+                            <li>1 Libre/Pound (lb) = 453.592 Gram (g)</li>
+                            <li>1 Ons (oz) = 28.3495 Gram (g)</li>
+                          </ul>`
+            },
+            units: {
+                'g': 1, 'kg': 1000, 'mg': 0.001, 'ton': 1000000,
+                'lb': 453.59237, 'oz': 28.34952
+            },
+            faq: [
+                { q: '1 Pound (lb) kaç kilogramdır?', a: '1 Libre (Pound) yaklaşık olarak 0.45359 kilogramdır (453.59 gram).' },
+                { q: 'Ons (oz) nerede kullanılır?', a: 'Genellikle altın, gümüş gibi değerli madenlerin ölçümünde (Troy ons) ve Amerika standart sisteminde gıda ağırlıklarında kullanılır.' }
+            ]
+        },
+        {
+            id: 'sicaklik',
+            name: 'Sıcaklık',
+            category: 'Genel',
+            icon: 'thermometer',
+            seo: {
+                title: 'Sıcaklık Çevirici | Celsius, Fahrenheit, Kelvin Dönüştür',
+                description: 'Celsius (Santigrat), Fahrenheit ve Kelvin sıcaklık birimleri arasında doğru matematiksel formüllerle anında dönüşüm yapın.',
+                content: `<p>Sıcaklık dönüşümleri basit çarpma/bölme işlemlerinden ziyade, kayma (offset) değerleri içerir.</p>
+                          <p><strong>Temel Formüller:</strong></p>
+                          <ul>
+                            <li><strong>Celsius'tan Fahrenheit'a:</strong> (°C × 9/5) + 32 = °F</li>
+                            <li><strong>Fahrenheit'tan Celsius'a:</strong> (°F - 32) × 5/9 = °C</li>
+                            <li><strong>Celsius'tan Kelvin'e:</strong> °C + 273.15 = K</li>
+                          </ul>`
+            },
+            units: { 'C': 'Celsius', 'F': 'Fahrenheit', 'K': 'Kelvin' },
+            // Özel dönüştürme fonksiyonu
+            customConvert: function(val, from, to) {
+                let celsius;
+                // Önce Celsius'a çevir
+                if (from === 'C') celsius = val;
+                else if (from === 'F') celsius = (val - 32) * 5/9;
+                else if (from === 'K') celsius = val - 273.15;
+                
+                // Celsius'tan hedefe çevir
+                if (to === 'C') return celsius;
+                if (to === 'F') return (celsius * 9/5) + 32;
+                if (to === 'K') return celsius + 273.15;
+            },
+            faq: [
+                { q: 'İnsan vücut sıcaklığı Fahrenheit cinsinden kaçtır?', a: 'Normal insan vücut sıcaklığı ortalama 37°C dir, bu da yaklaşık 98.6°F yapar.' },
+                { q: 'Mutlak sıfır nedir?', a: 'Mutlak sıfır, termodinamik sıcaklık ölçeğinin en alt noktasıdır. 0 Kelvin, -273.15 °C veya -459.67 °F ye denk gelir.' }
+            ]
+        },
+        {
+            id: 'doviz',
+            name: 'Döviz (Canlı)',
+            category: 'Finans',
+            icon: 'banknote',
+            seo: {
+                title: 'Canlı Döviz Çevirici | Dolar, Euro, TL Kur Hesaplama',
+                description: 'Canlı piyasa verileriyle USD, EUR, TRY, GBP ve diğer küresel para birimlerini birbirine çevirin.',
+                content: `<p>Döviz kurları, piyasadaki arz ve talebe göre anlık olarak değişir. Bu araç, açık kaynaklı API'ler aracılığıyla güncel kurları çeker.</p>
+                          <p>Hesaplama mantığı bir "Baz Para Birimi" (genellikle Euro veya Dolar) üzerinden çapraz kur hesaplaması yapılarak çalışır. Örneğin TRY'den GBP'ye geçiş için sistem TRY/USD ve GBP/USD kurlarını kullanır.</p>`
+            },
+            units: { 'USD': 1, 'EUR': 0.92, 'TRY': 32.0, 'GBP': 0.79, 'JPY': 150.0 }, // Varsayılan/Fallback değerler
+            isApi: 'currency',
+            faq: [
+                { q: 'Kurlar ne kadar sıklıkla güncellenir?', a: 'Sistem API sağlayıcısına bağlı olarak (genellikle saatlik veya günlük) en güncel piyasa kapanış oranlarını alır.' }
+            ]
+        },
+        {
+            id: 'kripto',
+            name: 'Kripto Para',
+            category: 'Finans',
+            icon: 'bitcoin',
+            seo: {
+                title: 'Canlı Kripto Para Çevirici | BTC, ETH, USDT Hesapla',
+                description: 'Bitcoin (BTC), Ethereum (ETH), Solana (SOL) gibi kripto paraların anlık USD ve itibari para karşılıklarını hesaplayın.',
+                content: `<p>Kripto para piyasası 7/24 açıktır ve fiyatlar çok değişkendir. Çeviricimiz CoinGecko altyapısını kullanarak güncel değerleri (USD bazında) çeker.</p>`
+            },
+            units: { 'USD': 1, 'BTC': 0.000015, 'ETH': 0.00028, 'USDT': 1, 'BNB': 0.0016, 'SOL': 0.005 }, // Fallback
+            isApi: 'crypto',
+            faq: [
+                { q: '1 Bitcoin kaç dolardır?', a: 'Bitcoin fiyatı anlık değişir. Uygulamamıza miktar girerek anlık güncel karşılığını görebilirsiniz.' }
+            ]
+        },
+        {
+            id: 'veri',
+            name: 'Veri Depolama',
+            category: 'Teknoloji',
+            icon: 'hard-drive',
+            seo: {
+                title: 'Veri Depolama Birimleri | MB, GB, TB, PB Çevirici',
+                description: 'Bayt, Kilobayt, Megabayt, Gigabayt, Terabayt dijital veri ölçü birimlerini matematiksel doğrulukla dönüştürün.',
+                content: `<p>Bilgisayar bilimlerinde veri birimleri ikilik (binary) sistem olan 1024 katları ile veya onluk (decimal) sistem olan 1000 katları ile ölçülür. Çoğu işletim sistemi 1024 bazını kullanır.</p>
+                          <ul><li>1 Kilobayt (KB) = 1024 Bayt (B)</li><li>1 Megabayt (MB) = 1024 KB</li><li>1 Gigabayt (GB) = 1024 MB</li></ul>`
+            },
+            units: { 'B': 1, 'KB': 1024, 'MB': 1048576, 'GB': 1073741824, 'TB': 1099511627776 },
+            faq: [{ q: 'Neden 1GB flash bellek bilgisayarda daha az görünür?', a: 'Üreticiler 1 GB ı 1,000,000,000 bayt (onluk) olarak kabul ederken, Windows gibi işletim sistemleri 1 GB ı 1,073,741,824 bayt (ikilik) olarak hesaplar.' }]
+        },
+        {
+            id: 'zaman',
+            name: 'Zaman',
+            category: 'Teknoloji',
+            icon: 'clock',
+            seo: {
+                title: 'Zaman Çevirici | Saniye, Dakika, Saat, Gün',
+                description: 'Saniye, milisaniye, dakika, saat, gün, hafta ve yıl gibi zaman birimlerini birbirine hatasız dönüştürün.',
+                content: `<p>Zaman birimleri 60'lık sisteme dayanır (saat ve dakika için). Baz birim olarak <strong>Saniye (s)</strong> kullanılır.</p><ul><li>1 Dakika = 60 Saniye</li><li>1 Saat = 3600 Saniye</li><li>1 Gün = 86400 Saniye</li></ul>`
+            },
+            units: { 'ms': 0.001, 'sn': 1, 'dk': 60, 'saat': 3600, 'gun': 86400, 'hafta': 604800, 'yil': 31536000 },
+            faq: [{ q: '1 yılda kaç saniye vardır?', a: 'Standart bir yılda (365 gün) 31,536,000 saniye bulunmaktadır.' }]
+        },
+        {
+            id: 'basinc',
+            name: 'Basınç',
+            category: 'Mühendislik',
+            icon: 'gauge',
+            seo: { title: 'Basınç Çevirici | Bar, Pascal, PSI, Atm', description: 'Atmosfer, Bar, Pascal ve PSI gibi endüstriyel ve meteorolojik basınç birimlerini çevirin.', content: '<p>Basınç, birim alana düşen kuvvet miktarıdır. Temel SI birimi <strong>Pascal (Pa)</strong> dır.</p>' },
+            units: { 'Pa': 1, 'kPa': 1000, 'bar': 100000, 'psi': 6894.76, 'atm': 101325 },
+            faq: [{ q: 'Araba lastiği basıncı hangi birimle ölçülür?', a: 'Otomobil lastikleri genellikle PSI (Pounds per Square Inch) veya Bar birimiyle ölçülür.' }]
+        },
+        {
+            id: 'enerji',
+            name: 'Enerji',
+            category: 'Mühendislik',
+            icon: 'zap',
+            seo: { title: 'Enerji Çevirici | Joule, Kalori, kWh', description: 'Joule, Kilokalori, Watt-saat enerji birimlerini birbirine çevirin.', content: '<p>Enerji için temel SI birimi Joule (J) dür. Beslenmede ise genellikle Kilokalori (kcal) kullanılır.</p>' },
+            units: { 'J': 1, 'kJ': 1000, 'cal': 4.184, 'kcal': 4184, 'Wh': 3600, 'kWh': 3600000 },
+            faq: [{ q: '1 Kalori (Besin) kaç Joule dir?', a: 'Besinlerde gördüğümüz "Kalori" aslında Kilokalori dir. 1 kcal = 4184 Joule eder.' }]
+        },
+        {
+            id: 'hiz',
+            name: 'Hız',
+            category: 'Mühendislik',
+            icon: 'gauge-circle',
+            seo: { title: 'Hız Çevirici | km/s, m/s, mil/s, Knot', description: 'Kilometre/saat, Metre/saniye, Mil/saat ve Knot (deniz mili) hız birimlerini çevirin.', content: '<p>Fizikte temel hız birimi saniyede alınan metre sayısıdır (m/s). Araçlarda ise km/h yaygındır.</p>' },
+            units: { 'm/s': 1, 'km/h': 0.277778, 'mph': 0.44704, 'knot': 0.514444 },
+            faq: [{ q: 'Knot nedir?', a: 'Knot (düğüm), denizcilik ve havacılıkta kullanılan, saatte 1 deniz miline (1.852 km/h) eşit hız birimidir.' }]
+        },
+        {
+            id: 'yakit',
+            name: 'Yakıt Tüketimi',
+            category: 'Mühendislik',
+            icon: 'fuel',
+            seo: { title: 'Yakıt Tüketimi | l/100km, km/l, MPG', description: 'Araçların yakıt tüketim performanslarını (Litre/100km, Kilometre/Litre, MPG) çevirin.', content: '<p>Avrupa da yaygın olarak 100 km de tüketilen litre kullanılırken, Amerika da 1 galon ile gidilebilecek mil (MPG) kullanılır.</p>' },
+            units: { 'km/l': 'Kilometre / Litre', 'l/100km': 'Litre / 100 km', 'mpg': 'Mil / Galon (US)' },
+            customConvert: function(val, from, to) {
+                // Hepsini önce km/l cinsine çevir
+                let kml;
+                if (from === 'km/l') kml = val;
+                else if (from === 'l/100km') kml = 100 / val;
+                else if (from === 'mpg') kml = val * 0.425144; // 1 mpg = 0.425 km/l
+
+                // kml'den hedefe
+                if (to === 'km/l') return kml;
+                if (to === 'l/100km') return 100 / kml;
+                if (to === 'mpg') return kml / 0.425144;
+            },
+            faq: [{ q: 'Daha yüksek MPG iyi mi kötü mü?', a: 'Daha yüksek MPG (Miles Per Gallon) daha iyidir; aracın aynı yakıtla daha çok mesafe gittiğini gösterir.' }]
+        },
+        {
+            id: 'alan',
+            name: 'Alan',
+            category: 'Mühendislik',
+            icon: 'square',
+            seo: { title: 'Alan Çevirici | Metrekare, Dönüm, Hektar', description: 'Metrekare, santimetrekare, hektar, dönüm ve acre alan ölçülerini hesaplayın.', content: '<p>Alan, iki boyutlu yüzey ölçüsüdür. SI birimi Metrekare (m²) dir.</p>' },
+            units: { 'm2': 1, 'km2': 1000000, 'cm2': 0.0001, 'hektar': 10000, 'donum': 1000, 'acre': 4046.86 },
+            faq: [{ q: '1 Dönüm kaç metrekaredir?', a: 'Türkiye standartlarında 1 dönüm tam olarak 1,000 metrekareye eşittir.' }]
+        },
+        {
+            id: 'hacim',
+            name: 'Hacim',
+            category: 'Mühendislik',
+            icon: 'box',
+            seo: { title: 'Hacim Çevirici | Litre, Metreküp, Galon', description: 'Litre, mililitre, metreküp, galon gibi sıvı ve katı hacim birimlerini birbirine çevirin.', content: '<p>Hacim üç boyutlu alan kaplama ölçüsüdür. Günlük hayatta Litre (L) sıkça kullanılır.</p>' },
+            units: { 'L': 1, 'mL': 0.001, 'm3': 1000, 'galUS': 3.78541, 'galUK': 4.54609 },
+            faq: [{ q: '1 Metreküp kaç litredir?', a: '1 Metreküp (m³), tam olarak 1,000 Litredir.' }]
+        },
+        {
+            id: 'aci',
+            name: 'Açı',
+            category: 'Mühendislik',
+            icon: 'triangle-right',
+            seo: { title: 'Açı Çevirici | Derece, Radyan, Grad', description: 'Geometrik açı birimleri olan derece (degree), radyan (rad) ve grad dönüştürme aracı.', content: '<p>Açı, kesişen iki doğru arasındaki açıklıktır. Bir tam çember 360 derece veya 2π radyandır.</p>' },
+            units: { 'deg': 1, 'rad': 57.2957795, 'grad': 0.9 },
+            faq: [{ q: 'π (Pi) radyan kaç derecedir?', a: 'Pi (π) radyan 180 dereceye eşittir (Yarım çember).' }]
+        },
+        {
+            id: 'frekans',
+            name: 'Frekans',
+            category: 'Teknoloji',
+            icon: 'activity',
+            seo: { title: 'Frekans Çevirici | Hertz, KHz, MHz, GHz', description: 'Frekans ölçü birimleri olan Hertz (Hz), Kilohertz ve Megahertz dönüşümlerini yapın.', content: '<p>Frekans, saniyedeki titreşim veya döngü sayısıdır. SI birimi Hertz (Hz) dir.</p>' },
+            units: { 'Hz': 1, 'kHz': 1000, 'MHz': 1000000, 'GHz': 1000000000 },
+            faq: [{ q: 'Ekranlardaki 60Hz ne anlama gelir?', a: 'Ekranın saniyede 60 kez yenilendiği anlamına gelir. Değer arttıkça görüntü akıcılığı artar.' }]
+        }
+    ];
+
+    // İsim Sözlüğü
+    const unitNames = {
+        'm': 'Metre', 'km': 'Kilometre', 'cm': 'Santimetre', 'mm': 'Milimetre', 'in': 'İnç (Inch)', 'ft': 'Ayak (Foot)', 'yd': 'Yarda', 'mi': 'Mil',
+        'g': 'Gram', 'kg': 'Kilogram', 'mg': 'Miligram', 'ton': 'Ton', 'lb': 'Pound (lb)', 'oz': 'Ons (oz)',
+        'C': 'Celsius (°C)', 'F': 'Fahrenheit (°F)', 'K': 'Kelvin (K)',
+        'B': 'Bayt (B)', 'KB': 'Kilobayt (KB)', 'MB': 'Megabayt (MB)', 'GB': 'Gigabayt (GB)', 'TB': 'Terabayt (TB)',
+        'ms': 'Milisaniye', 'sn': 'Saniye', 'dk': 'Dakika', 'saat': 'Saat', 'gun': 'Gün', 'hafta': 'Hafta', 'yil': 'Yıl',
+        'Pa': 'Pascal', 'kPa': 'KiloPascal', 'bar': 'Bar', 'psi': 'PSI', 'atm': 'Atmosfer (atm)',
+        'J': 'Joule', 'kJ': 'Kilojoule', 'cal': 'Kalori', 'kcal': 'Kilokalori', 'Wh': 'Watt-saat', 'kWh': 'Kilowatt-saat',
+        'm/s': 'Metre/Saniye', 'km/h': 'Kilometre/Saat', 'mph': 'Mil/Saat (mph)', 'knot': 'Knot (Deniz Mili)',
+        'm2': 'Metrekare (m²)', 'km2': 'Kilometrekare (km²)', 'cm2': 'Santimetrekare (cm²)', 'hektar': 'Hektar', 'donum': 'Dönüm', 'acre': 'Acre',
+        'L': 'Litre', 'mL': 'Mililitre', 'm3': 'Metreküp (m³)', 'galUS': 'Galon (US)', 'galUK': 'Galon (UK)',
+        'deg': 'Derece (°)', 'rad': 'Radyan (rad)', 'grad': 'Grad',
+        'Hz': 'Hertz', 'kHz': 'Kilohertz', 'MHz': 'Megahertz', 'GHz': 'Gigahertz',
+        'USD': 'Amerikan Doları (USD)', 'EUR': 'Euro (EUR)', 'TRY': 'Türk Lirası (TRY)', 'GBP': 'İngiliz Sterlini (GBP)', 'JPY': 'Japon Yeni (JPY)',
+        'BTC': 'Bitcoin (BTC)', 'ETH': 'Ethereum (ETH)', 'USDT': 'Tether (USDT)', 'BNB': 'Binance Coin (BNB)', 'SOL': 'Solana (SOL)'
+    };
+
+    const app = createApp({
+        data() {
+            return {
+                tools: toolsData,
+                activeToolId: 'uzunluk',
+                fromUnit: 'm',
+                toUnit: 'km',
+                fromValue: 1,
+                toValue: 0.001,
+                isDark: false,
+                sidebarOpen: false,
+                searchQuery: '',
+                recentTools: [],
+                openFaq: null,
+                apiLoading: false,
+                apiError: false
+            }
+        },
+        computed: {
+            activeTool() {
+                return this.tools.find(t => t.id === this.activeToolId);
+            },
+            filteredCategories() {
+                let filtered = this.tools;
+                if (this.searchQuery) {
+                    const q = this.searchQuery.toLowerCase();
+                    filtered = this.tools.filter(t => t.name.toLowerCase().includes(q) || t.id.includes(q));
+                }
+                
+                const categories = {};
+                filtered.forEach(tool => {
+                    if (!categories[tool.category]) categories[tool.category] = [];
+                    categories[tool.category].push(tool);
+                });
+                return categories;
+            },
+            conversionRateDisplay() {
+                if(this.activeTool.customConvert) {
+                    return this.formatNumber(this.activeTool.customConvert(1, this.fromUnit, this.toUnit));
+                }
+                const baseVal = 1 * this.activeTool.units[this.fromUnit];
+                const targetVal = baseVal / this.activeTool.units[this.toUnit];
+                return this.formatNumber(targetVal);
+            }
+        },
+        watch: {
+            activeToolId(newId) {
+                const tool = this.getTool(newId);
+                const keys = Object.keys(tool.units);
+                this.fromUnit = keys[0];
+                this.toUnit = keys[1] || keys[0];
+                this.fromValue = 1;
+                this.openFaq = null;
+                
+                if (tool.isApi === 'currency') this.fetchCurrency();
+                if (tool.isApi === 'crypto') this.fetchCrypto();
+                
+                this.calcToValue();
+                this.updateSEO();
+                this.addToRecent(newId);
+            }
+        },
+        methods: {
+            getTool(id) {
+                return this.tools.find(t => t.id === id);
+            },
+            getUnitName(key) {
+                return unitNames[key] || key;
+            },
+            selectTool(id) {
+                this.activeToolId = id;
+                if (window.innerWidth < 1024) this.sidebarOpen = false;
+                window.history.pushState({}, '', `?tool=${id}`);
+            },
+            swapUnits() {
+                const temp = this.fromUnit;
+                this.fromUnit = this.toUnit;
+                this.toUnit = temp;
+                this.calcToValue();
+            },
+            formatNumber(num) {
+                // Gereksiz sıfırları at ve hassasiyeti koru
+                return parseFloat(Number(num).toPrecision(10));
+            },
+            calcToValue() {
+                if (this.fromValue === '' || this.fromValue === null) {
+                    this.toValue = '';
+                    return;
+                }
+                
+                const val = parseFloat(this.fromValue);
+                if(isNaN(val)) return;
+
+                if (this.activeTool.customConvert) {
+                    this.toValue = this.formatNumber(this.activeTool.customConvert(val, this.fromUnit, this.toUnit));
+                } else {
+                    // Matematik: (Değer * Kaynak Birimin Baza Oranı) / Hedef Birimin Baza Oranı
+                    const baseVal = val * this.activeTool.units[this.fromUnit];
+                    this.toValue = this.formatNumber(baseVal / this.activeTool.units[this.toUnit]);
+                }
+            },
+            calcFromValue() {
+                if (this.toValue === '' || this.toValue === null) {
+                    this.fromValue = '';
+                    return;
+                }
+
+                const val = parseFloat(this.toValue);
+                if(isNaN(val)) return;
+
+                if (this.activeTool.customConvert) {
+                    this.fromValue = this.formatNumber(this.activeTool.customConvert(val, this.toUnit, this.fromUnit));
+                } else {
+                    const baseVal = val * this.activeTool.units[this.toUnit];
+                    this.fromValue = this.formatNumber(baseVal / this.activeTool.units[this.fromUnit]);
+                }
+            },
+            toggleTheme() {
+                this.isDark = !this.isDark;
+                localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
+                this.applyTheme();
+            },
+            applyTheme() {
+                if (this.isDark) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            },
+            toggleFaq(idx) {
+                this.openFaq = this.openFaq === idx ? null : idx;
+            },
+            addToRecent(id) {
+                this.recentTools = this.recentTools.filter(item => item !== id);
+                this.recentTools.unshift(id);
+                if (this.recentTools.length > 5) this.recentTools.pop();
+                localStorage.setItem('recentTools', JSON.stringify(this.recentTools));
+            },
+            updateSEO() {
+                document.title = this.activeTool.seo.title;
+                document.querySelector('meta[name="description"]').setAttribute("content", this.activeTool.seo.description);
+                this.injectSchema();
+            },
+            injectSchema() {
+                // Eski schema'yı sil
+                const oldSchema = document.getElementById('jsonld-schema');
+                if (oldSchema) oldSchema.remove();
+
+                const schema = {
+                    "@context": "https://schema.org",
+                    "@type": "SoftwareApplication",
+                    "name": this.activeTool.seo.title,
+                    "operatingSystem": "All",
+                    "applicationCategory": "UtilitiesApplication",
+                    "description": this.activeTool.seo.description,
+                    "offers": {
+                        "@type": "Offer",
+                        "price": "0",
+                        "priceCurrency": "USD"
+                    }
+                };
+
+                const script = document.createElement('script');
+                script.type = "application/ld+json";
+                script.id = "jsonld-schema";
+                script.text = JSON.stringify(schema);
+                document.head.appendChild(script);
+            },
+            async fetchCurrency() {
+                this.apiLoading = true;
+                this.apiError = false;
+                try {
+                    // Frankfurter public API (USD bazında)
+                    const res = await fetch('https://api.frankfurter.app/latest?from=USD');
+                    if(!res.ok) throw new Error("API Error");
+                    const data = await res.json();
+                    
+                    // Veriyi kaydet (Baza göre ters oran mantığı)
+                    const rates = data.rates;
+                    const toolObj = this.tools.find(t => t.id === 'doviz');
+                    toolObj.units = { 'USD': 1 };
+                    
+                    // En çok kullanılanları başa koymak için elle belirliyoruz
+                    ['EUR', 'TRY', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD'].forEach(cur => {
+                        if(rates[cur]) toolObj.units[cur] = 1 / rates[cur];
+                    });
+                    
+                    this.calcToValue();
+                } catch(e) {
+                    console.error("Döviz çekilemedi", e);
+                    this.apiError = true;
+                } finally {
+                    this.apiLoading = false;
+                }
+            },
+            async fetchCrypto() {
+                this.apiLoading = true;
+                this.apiError = false;
+                try {
+                    // CoinGecko public API
+                    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,binancecoin,solana&vs_currencies=usd');
+                    if(!res.ok) throw new Error("API Error");
+                    const data = await res.json();
+                    
+                    const toolObj = this.tools.find(t => t.id === 'kripto');
+                    // USD Base. 1 USD = 1/BitcoinPrice BTC
+                    toolObj.units = {
+                        'USD': 1,
+                        'BTC': data.bitcoin.usd, 
+                        'ETH': data.ethereum.usd,
+                        'USDT': data.tether.usd,
+                        'BNB': data.binancecoin.usd,
+                        'SOL': data.solana.usd
+                    };
+                    
+                    this.calcToValue();
+                } catch(e) {
+                    console.error("Kripto çekilemedi", e);
+                    this.apiError = true;
+                } finally {
+                    this.apiLoading = false;
+                }
+            }
+        },
+        mounted() {
+            // Theme Init
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                this.isDark = savedTheme === 'dark';
+            } else {
+                this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+            this.applyTheme();
+
+            // Recent Tools Init
+            const savedRecent = localStorage.getItem('recentTools');
+            if (savedRecent) this.recentTools = JSON.parse(savedRecent);
+
+            // URL Route Check (SPA Routing)
+            const params = new URLSearchParams(window.location.search);
+            const toolParam = params.get('tool');
+            if (toolParam && this.getTool(toolParam)) {
+                this.activeToolId = toolParam;
+            } else {
+                this.updateSEO(); // For default
+            }
+
+            // Init Icons Wait for DOM
+            this.$nextTick(() => {
+                lucide.createIcons();
+            });
+        },
+        updated() {
+            lucide.createIcons();
+        }
+    });
+
+    app.mount('#app');
+</script>
+</body>
+</html>

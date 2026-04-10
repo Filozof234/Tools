@@ -130,8 +130,9 @@
                 <div v-if="apiLoading" class="mb-4 text-sm text-blue-500 flex items-center">
                     <i data-lucide="loader" class="w-4 h-4 mr-2 animate-spin"></i> Canlı kurlar güncelleniyor...
                 </div>
-                <div v-if="apiError" class="mb-4 text-sm text-red-500 flex items-center">
-                    <i data-lucide="alert-circle" class="w-4 h-4 mr-2"></i> Canlı veri çekilemedi, varsayılan kurlar kullanılıyor.
+                <div v-if="apiError" class="mb-4 text-sm text-red-500 flex items-center bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800/30">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 mr-2 flex-shrink-0"></i> 
+                    <span>Canlı veri çekilemedi. Son bilinen varsayılan kurlar kullanılıyor. Lütfen internet bağlantınızı kontrol edin.</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
@@ -275,15 +276,12 @@
                           </ul>`
             },
             units: { 'C': 'Celsius', 'F': 'Fahrenheit', 'K': 'Kelvin' },
-            // Özel dönüştürme fonksiyonu
             customConvert: function(val, from, to) {
                 let celsius;
-                // Önce Celsius'a çevir
                 if (from === 'C') celsius = val;
                 else if (from === 'F') celsius = (val - 32) * 5/9;
                 else if (from === 'K') celsius = val - 273.15;
                 
-                // Celsius'tan hedefe çevir
                 if (to === 'C') return celsius;
                 if (to === 'F') return (celsius * 9/5) + 32;
                 if (to === 'K') return celsius + 273.15;
@@ -302,9 +300,10 @@
                 title: 'Canlı Döviz Çevirici | Dolar, Euro, TL Kur Hesaplama',
                 description: 'Canlı piyasa verileriyle USD, EUR, TRY, GBP ve diğer küresel para birimlerini birbirine çevirin.',
                 content: `<p>Döviz kurları, piyasadaki arz ve talebe göre anlık olarak değişir. Bu araç, açık kaynaklı API'ler aracılığıyla güncel kurları çeker.</p>
-                          <p>Hesaplama mantığı bir "Baz Para Birimi" (genellikle Euro veya Dolar) üzerinden çapraz kur hesaplaması yapılarak çalışır. Örneğin TRY'den GBP'ye geçiş için sistem TRY/USD ve GBP/USD kurlarını kullanır.</p>`
+                          <p>Hesaplama mantığı bir "Baz Para Birimi" (genellikle Dolar) üzerinden çapraz kur hesaplaması yapılarak çalışır.</p>`
             },
-            units: { 'USD': 1, 'EUR': 0.92, 'TRY': 32.0, 'GBP': 0.79, 'JPY': 150.0 }, // Varsayılan/Fallback değerler
+            // Fallback değerler (API çökerse bunlar kullanılır)
+            units: { 'USD': 1, 'EUR': 0.92, 'TRY': 32.5, 'GBP': 0.79, 'JPY': 150.0 }, 
             isApi: 'currency',
             faq: [
                 { q: 'Kurlar ne kadar sıklıkla güncellenir?', a: 'Sistem API sağlayıcısına bağlı olarak (genellikle saatlik veya günlük) en güncel piyasa kapanış oranlarını alır.' }
@@ -331,111 +330,100 @@
             name: 'Veri Depolama',
             category: 'Teknoloji',
             icon: 'hard-drive',
-            seo: {
-                title: 'Veri Depolama Birimleri | MB, GB, TB, PB Çevirici',
-                description: 'Bayt, Kilobayt, Megabayt, Gigabayt, Terabayt dijital veri ölçü birimlerini matematiksel doğrulukla dönüştürün.',
-                content: `<p>Bilgisayar bilimlerinde veri birimleri ikilik (binary) sistem olan 1024 katları ile veya onluk (decimal) sistem olan 1000 katları ile ölçülür. Çoğu işletim sistemi 1024 bazını kullanır.</p>
-                          <ul><li>1 Kilobayt (KB) = 1024 Bayt (B)</li><li>1 Megabayt (MB) = 1024 KB</li><li>1 Gigabayt (GB) = 1024 MB</li></ul>`
-            },
+            seo: { title: 'Veri Depolama Birimleri', description: 'Bayt, Kilobayt, Megabayt çevirici.', content: '<p>1 KB = 1024 B</p>' },
             units: { 'B': 1, 'KB': 1024, 'MB': 1048576, 'GB': 1073741824, 'TB': 1099511627776 },
-            faq: [{ q: 'Neden 1GB flash bellek bilgisayarda daha az görünür?', a: 'Üreticiler 1 GB ı 1,000,000,000 bayt (onluk) olarak kabul ederken, Windows gibi işletim sistemleri 1 GB ı 1,073,741,824 bayt (ikilik) olarak hesaplar.' }]
+            faq: []
         },
         {
             id: 'zaman',
             name: 'Zaman',
             category: 'Teknoloji',
             icon: 'clock',
-            seo: {
-                title: 'Zaman Çevirici | Saniye, Dakika, Saat, Gün',
-                description: 'Saniye, milisaniye, dakika, saat, gün, hafta ve yıl gibi zaman birimlerini birbirine hatasız dönüştürün.',
-                content: `<p>Zaman birimleri 60'lık sisteme dayanır (saat ve dakika için). Baz birim olarak <strong>Saniye (s)</strong> kullanılır.</p><ul><li>1 Dakika = 60 Saniye</li><li>1 Saat = 3600 Saniye</li><li>1 Gün = 86400 Saniye</li></ul>`
-            },
+            seo: { title: 'Zaman Çevirici', description: 'Saniye, dakika, saat çevirici.', content: '<p>1 Dakika = 60 Saniye</p>' },
             units: { 'ms': 0.001, 'sn': 1, 'dk': 60, 'saat': 3600, 'gun': 86400, 'hafta': 604800, 'yil': 31536000 },
-            faq: [{ q: '1 yılda kaç saniye vardır?', a: 'Standart bir yılda (365 gün) 31,536,000 saniye bulunmaktadır.' }]
+            faq: []
         },
         {
             id: 'basinc',
             name: 'Basınç',
             category: 'Mühendislik',
             icon: 'gauge',
-            seo: { title: 'Basınç Çevirici | Bar, Pascal, PSI, Atm', description: 'Atmosfer, Bar, Pascal ve PSI gibi endüstriyel ve meteorolojik basınç birimlerini çevirin.', content: '<p>Basınç, birim alana düşen kuvvet miktarıdır. Temel SI birimi <strong>Pascal (Pa)</strong> dır.</p>' },
+            seo: { title: 'Basınç Çevirici', description: 'Bar, Pascal, PSI çevirici.', content: '<p>Temel birim Pascal dır.</p>' },
             units: { 'Pa': 1, 'kPa': 1000, 'bar': 100000, 'psi': 6894.76, 'atm': 101325 },
-            faq: [{ q: 'Araba lastiği basıncı hangi birimle ölçülür?', a: 'Otomobil lastikleri genellikle PSI (Pounds per Square Inch) veya Bar birimiyle ölçülür.' }]
+            faq: []
         },
         {
             id: 'enerji',
             name: 'Enerji',
             category: 'Mühendislik',
             icon: 'zap',
-            seo: { title: 'Enerji Çevirici | Joule, Kalori, kWh', description: 'Joule, Kilokalori, Watt-saat enerji birimlerini birbirine çevirin.', content: '<p>Enerji için temel SI birimi Joule (J) dür. Beslenmede ise genellikle Kilokalori (kcal) kullanılır.</p>' },
+            seo: { title: 'Enerji Çevirici', description: 'Joule, Kalori, kWh çevirici.', content: '<p>1 kcal = 4184 J</p>' },
             units: { 'J': 1, 'kJ': 1000, 'cal': 4.184, 'kcal': 4184, 'Wh': 3600, 'kWh': 3600000 },
-            faq: [{ q: '1 Kalori (Besin) kaç Joule dir?', a: 'Besinlerde gördüğümüz "Kalori" aslında Kilokalori dir. 1 kcal = 4184 Joule eder.' }]
+            faq: []
         },
         {
             id: 'hiz',
             name: 'Hız',
             category: 'Mühendislik',
             icon: 'gauge-circle',
-            seo: { title: 'Hız Çevirici | km/s, m/s, mil/s, Knot', description: 'Kilometre/saat, Metre/saniye, Mil/saat ve Knot (deniz mili) hız birimlerini çevirin.', content: '<p>Fizikte temel hız birimi saniyede alınan metre sayısıdır (m/s). Araçlarda ise km/h yaygındır.</p>' },
+            seo: { title: 'Hız Çevirici', description: 'km/s, m/s, Knot çevirici.', content: '<p>Fizikte temel hız m/s dir.</p>' },
             units: { 'm/s': 1, 'km/h': 0.277778, 'mph': 0.44704, 'knot': 0.514444 },
-            faq: [{ q: 'Knot nedir?', a: 'Knot (düğüm), denizcilik ve havacılıkta kullanılan, saatte 1 deniz miline (1.852 km/h) eşit hız birimidir.' }]
+            faq: []
         },
         {
             id: 'yakit',
             name: 'Yakıt Tüketimi',
             category: 'Mühendislik',
             icon: 'fuel',
-            seo: { title: 'Yakıt Tüketimi | l/100km, km/l, MPG', description: 'Araçların yakıt tüketim performanslarını (Litre/100km, Kilometre/Litre, MPG) çevirin.', content: '<p>Avrupa da yaygın olarak 100 km de tüketilen litre kullanılırken, Amerika da 1 galon ile gidilebilecek mil (MPG) kullanılır.</p>' },
+            seo: { title: 'Yakıt Tüketimi', description: 'l/100km, km/l, MPG çevirici.', content: '<p>Yakıt tüketimi hesaplama aracı.</p>' },
             units: { 'km/l': 'Kilometre / Litre', 'l/100km': 'Litre / 100 km', 'mpg': 'Mil / Galon (US)' },
             customConvert: function(val, from, to) {
-                // Hepsini önce km/l cinsine çevir
                 let kml;
                 if (from === 'km/l') kml = val;
                 else if (from === 'l/100km') kml = 100 / val;
-                else if (from === 'mpg') kml = val * 0.425144; // 1 mpg = 0.425 km/l
+                else if (from === 'mpg') kml = val * 0.425144;
 
-                // kml'den hedefe
                 if (to === 'km/l') return kml;
                 if (to === 'l/100km') return 100 / kml;
                 if (to === 'mpg') return kml / 0.425144;
             },
-            faq: [{ q: 'Daha yüksek MPG iyi mi kötü mü?', a: 'Daha yüksek MPG (Miles Per Gallon) daha iyidir; aracın aynı yakıtla daha çok mesafe gittiğini gösterir.' }]
+            faq: []
         },
         {
             id: 'alan',
             name: 'Alan',
             category: 'Mühendislik',
             icon: 'square',
-            seo: { title: 'Alan Çevirici | Metrekare, Dönüm, Hektar', description: 'Metrekare, santimetrekare, hektar, dönüm ve acre alan ölçülerini hesaplayın.', content: '<p>Alan, iki boyutlu yüzey ölçüsüdür. SI birimi Metrekare (m²) dir.</p>' },
+            seo: { title: 'Alan Çevirici', description: 'Metrekare, Dönüm, Hektar çevirici.', content: '<p>1 Dönüm = 1000m²</p>' },
             units: { 'm2': 1, 'km2': 1000000, 'cm2': 0.0001, 'hektar': 10000, 'donum': 1000, 'acre': 4046.86 },
-            faq: [{ q: '1 Dönüm kaç metrekaredir?', a: 'Türkiye standartlarında 1 dönüm tam olarak 1,000 metrekareye eşittir.' }]
+            faq: []
         },
         {
             id: 'hacim',
             name: 'Hacim',
             category: 'Mühendislik',
             icon: 'box',
-            seo: { title: 'Hacim Çevirici | Litre, Metreküp, Galon', description: 'Litre, mililitre, metreküp, galon gibi sıvı ve katı hacim birimlerini birbirine çevirin.', content: '<p>Hacim üç boyutlu alan kaplama ölçüsüdür. Günlük hayatta Litre (L) sıkça kullanılır.</p>' },
+            seo: { title: 'Hacim Çevirici', description: 'Litre, Metreküp çevirici.', content: '<p>1 m³ = 1000 L</p>' },
             units: { 'L': 1, 'mL': 0.001, 'm3': 1000, 'galUS': 3.78541, 'galUK': 4.54609 },
-            faq: [{ q: '1 Metreküp kaç litredir?', a: '1 Metreküp (m³), tam olarak 1,000 Litredir.' }]
+            faq: []
         },
         {
             id: 'aci',
             name: 'Açı',
             category: 'Mühendislik',
             icon: 'triangle-right',
-            seo: { title: 'Açı Çevirici | Derece, Radyan, Grad', description: 'Geometrik açı birimleri olan derece (degree), radyan (rad) ve grad dönüştürme aracı.', content: '<p>Açı, kesişen iki doğru arasındaki açıklıktır. Bir tam çember 360 derece veya 2π radyandır.</p>' },
+            seo: { title: 'Açı Çevirici', description: 'Derece, Radyan, Grad çevirici.', content: '<p>1 tam tur 360 derecedir.</p>' },
             units: { 'deg': 1, 'rad': 57.2957795, 'grad': 0.9 },
-            faq: [{ q: 'π (Pi) radyan kaç derecedir?', a: 'Pi (π) radyan 180 dereceye eşittir (Yarım çember).' }]
+            faq: []
         },
         {
             id: 'frekans',
             name: 'Frekans',
             category: 'Teknoloji',
             icon: 'activity',
-            seo: { title: 'Frekans Çevirici | Hertz, KHz, MHz, GHz', description: 'Frekans ölçü birimleri olan Hertz (Hz), Kilohertz ve Megahertz dönüşümlerini yapın.', content: '<p>Frekans, saniyedeki titreşim veya döngü sayısıdır. SI birimi Hertz (Hz) dir.</p>' },
+            seo: { title: 'Frekans Çevirici', description: 'Hz, KHz, MHz çevirici.', content: '<p>Saniyedeki döngü sayısı.</p>' },
             units: { 'Hz': 1, 'kHz': 1000, 'MHz': 1000000, 'GHz': 1000000000 },
-            faq: [{ q: 'Ekranlardaki 60Hz ne anlama gelir?', a: 'Ekranın saniyede 60 kez yenilendiği anlamına gelir. Değer arttıkça görüntü akıcılığı artar.' }]
+            faq: []
         }
     ];
 
@@ -454,7 +442,8 @@
         'deg': 'Derece (°)', 'rad': 'Radyan (rad)', 'grad': 'Grad',
         'Hz': 'Hertz', 'kHz': 'Kilohertz', 'MHz': 'Megahertz', 'GHz': 'Gigahertz',
         'USD': 'Amerikan Doları (USD)', 'EUR': 'Euro (EUR)', 'TRY': 'Türk Lirası (TRY)', 'GBP': 'İngiliz Sterlini (GBP)', 'JPY': 'Japon Yeni (JPY)',
-        'BTC': 'Bitcoin (BTC)', 'ETH': 'Ethereum (ETH)', 'USDT': 'Tether (USDT)', 'BNB': 'Binance Coin (BNB)', 'SOL': 'Solana (SOL)'
+        'BTC': 'Bitcoin (BTC)', 'ETH': 'Ethereum (ETH)', 'USDT': 'Tether (USDT)', 'BNB': 'Binance Coin (BNB)', 'SOL': 'Solana (SOL)',
+        'CAD': 'Kanada Doları (CAD)', 'AUD': 'Avustralya Doları (AUD)', 'CHF': 'İsviçre Frangı (CHF)'
     };
 
     const app = createApp({
@@ -510,6 +499,7 @@
                 this.toUnit = keys[1] || keys[0];
                 this.fromValue = 1;
                 this.openFaq = null;
+                this.apiError = false;
                 
                 if (tool.isApi === 'currency') this.fetchCurrency();
                 if (tool.isApi === 'crypto') this.fetchCrypto();
@@ -538,7 +528,6 @@
                 this.calcToValue();
             },
             formatNumber(num) {
-                // Gereksiz sıfırları at ve hassasiyeti koru
                 return parseFloat(Number(num).toPrecision(10));
             },
             calcToValue() {
@@ -546,14 +535,12 @@
                     this.toValue = '';
                     return;
                 }
-                
                 const val = parseFloat(this.fromValue);
                 if(isNaN(val)) return;
 
                 if (this.activeTool.customConvert) {
                     this.toValue = this.formatNumber(this.activeTool.customConvert(val, this.fromUnit, this.toUnit));
                 } else {
-                    // Matematik: (Değer * Kaynak Birimin Baza Oranı) / Hedef Birimin Baza Oranı
                     const baseVal = val * this.activeTool.units[this.fromUnit];
                     this.toValue = this.formatNumber(baseVal / this.activeTool.units[this.toUnit]);
                 }
@@ -563,7 +550,6 @@
                     this.fromValue = '';
                     return;
                 }
-
                 const val = parseFloat(this.toValue);
                 if(isNaN(val)) return;
 
@@ -595,56 +581,34 @@
             updateSEO() {
                 document.title = this.activeTool.seo.title;
                 document.querySelector('meta[name="description"]').setAttribute("content", this.activeTool.seo.description);
-                this.injectSchema();
-            },
-            injectSchema() {
-                // Eski schema'yı sil
-                const oldSchema = document.getElementById('jsonld-schema');
-                if (oldSchema) oldSchema.remove();
-
-                const schema = {
-                    "@context": "https://schema.org",
-                    "@type": "SoftwareApplication",
-                    "name": this.activeTool.seo.title,
-                    "operatingSystem": "All",
-                    "applicationCategory": "UtilitiesApplication",
-                    "description": this.activeTool.seo.description,
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0",
-                        "priceCurrency": "USD"
-                    }
-                };
-
-                const script = document.createElement('script');
-                script.type = "application/ld+json";
-                script.id = "jsonld-schema";
-                script.text = JSON.stringify(schema);
-                document.head.appendChild(script);
             },
             async fetchCurrency() {
                 this.apiLoading = true;
                 this.apiError = false;
                 try {
-                    // Frankfurter public API (USD bazında)
-                    const res = await fetch('https://api.frankfurter.app/latest?from=USD');
-                    if(!res.ok) throw new Error("API Error");
+                    // Düzeltme: CORS destekli, ücretsiz ExchangeRate-API (Open)
+                    const res = await fetch('https://open.er-api.com/v6/latest/USD');
+                    if(!res.ok) throw new Error("Exchange API Error");
                     const data = await res.json();
                     
-                    // Veriyi kaydet (Baza göre ters oran mantığı)
                     const rates = data.rates;
                     const toolObj = this.tools.find(t => t.id === 'doviz');
                     toolObj.units = { 'USD': 1 };
                     
-                    // En çok kullanılanları başa koymak için elle belirliyoruz
+                    // İstenilen kurları listeye ekliyoruz
                     ['EUR', 'TRY', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD'].forEach(cur => {
-                        if(rates[cur]) toolObj.units[cur] = 1 / rates[cur];
+                        if(rates[cur]) {
+                            // USD 1 birim olduğu için oran mantığına göre bölüyoruz
+                            toolObj.units[cur] = 1 / rates[cur];
+                        }
                     });
                     
                     this.calcToValue();
                 } catch(e) {
-                    console.error("Döviz çekilemedi", e);
+                    console.error("Döviz çekilemedi, varsayılan kurlar kullanılıyor.", e);
                     this.apiError = true;
+                    // Hata durumunda da çeviri çalışmaya devam etmesi için son kez tetikliyoruz
+                    this.calcToValue();
                 } finally {
                     this.apiLoading = false;
                 }
@@ -653,33 +617,31 @@
                 this.apiLoading = true;
                 this.apiError = false;
                 try {
-                    // CoinGecko public API
                     const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether,binancecoin,solana&vs_currencies=usd');
-                    if(!res.ok) throw new Error("API Error");
+                    if(!res.ok) throw new Error("CoinGecko API Error");
                     const data = await res.json();
                     
                     const toolObj = this.tools.find(t => t.id === 'kripto');
-                    // USD Base. 1 USD = 1/BitcoinPrice BTC
                     toolObj.units = {
                         'USD': 1,
-                        'BTC': data.bitcoin.usd, 
-                        'ETH': data.ethereum.usd,
-                        'USDT': data.tether.usd,
-                        'BNB': data.binancecoin.usd,
-                        'SOL': data.solana.usd
+                        'BTC': data.bitcoin?.usd || toolObj.units['BTC'], 
+                        'ETH': data.ethereum?.usd || toolObj.units['ETH'],
+                        'USDT': data.tether?.usd || toolObj.units['USDT'],
+                        'BNB': data.binancecoin?.usd || toolObj.units['BNB'],
+                        'SOL': data.solana?.usd || toolObj.units['SOL']
                     };
                     
                     this.calcToValue();
                 } catch(e) {
-                    console.error("Kripto çekilemedi", e);
+                    console.error("Kripto çekilemedi, varsayılan kurlar kullanılıyor.", e);
                     this.apiError = true;
+                    this.calcToValue();
                 } finally {
                     this.apiLoading = false;
                 }
             }
         },
         mounted() {
-            // Theme Init
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
                 this.isDark = savedTheme === 'dark';
@@ -688,20 +650,17 @@
             }
             this.applyTheme();
 
-            // Recent Tools Init
             const savedRecent = localStorage.getItem('recentTools');
             if (savedRecent) this.recentTools = JSON.parse(savedRecent);
 
-            // URL Route Check (SPA Routing)
             const params = new URLSearchParams(window.location.search);
             const toolParam = params.get('tool');
             if (toolParam && this.getTool(toolParam)) {
                 this.activeToolId = toolParam;
             } else {
-                this.updateSEO(); // For default
+                this.updateSEO();
             }
 
-            // Init Icons Wait for DOM
             this.$nextTick(() => {
                 lucide.createIcons();
             });
